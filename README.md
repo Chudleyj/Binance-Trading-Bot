@@ -9,8 +9,8 @@ Binance API: https://github.com/binance-exchange/binance-official-api-docs
 Prerequisites: 
 
 https://github.com/Microsoft/cpprestsdk
+
 C++ 11 or higher
 
 To Run:
-
 g++ -std=c++11 BinanceBot.cpp -stdlib=libc++ -lcpprest -lssl -lcrypto -t/openssl/lib -I/usr/local/opt/openssl/include-mt -L/usr/local/opt
