@@ -1,52 +1,39 @@
-#include <cpprest/http_client.h>
-#include <cpprest/filestream.h>
-#include <cpprest/ws_client.h>
-#include <openssl/hmac.h>
-#include <iostream>
-#include <string>
-#include <chrono>
-#include <sstream>
-#include <stdio.h>
-
-using namespace utility;                    // Common utilities like string conversions
-using namespace web;                        // Common features like URIs.
-using namespace web::http;                  // Common HTTP functionality
-using namespace web::http::client;          // HTTP client features
-using namespace concurrency::streams;       // Asynchronous streams
-using namespace std;
-using namespace std::chrono;                //Allows us to get epoch time without having to ping Binance server for it
-
-string getTime(); //Get epoch time (It will be needed for the signature)
-string HMACsha256(string const&, string const&); //Generate HMACsha256 signature
-void init();
-void tradingBot();
-void getPrice(const string);
-void formatPrice(json::value const &);
+#include "BinanceBot.h"
 
 int main(int argc, char* argv[])
 {
     cout << endl << "Welcome to the C++ Binance Bot. WARNING --> This is still an extremly early alpha build. Use at your own risk." << endl;
-    init();
-   // search();
+    bot.init();
     return 0;
 }
 
-void init(){
+void botData::init(){
     string input;
     cout << endl << "Choose bot mode: 1 = trading" << endl;
     cin >> input;
-    (input == "1") ? tradingBot() : init();
+    (input == "1") ? tradingBot() : algoBot(); //TEMPORARY
 }
 
-void tradingBot(){
-    string pair, choice, price, amount;
-    
-    cout << "Select trading pair (e.g. LTCBTC, ETHBTC,TRXETH, etc.)" << endl;
-    cin >> pair;
-    
-    cout << "Selected " << pair << ". Last known price of " << pair << ": ";
-    getPrice(pair);
-    
+void botData::setPair(){
+    cout << "Select trading pair (ex: LTCBTC, TRXETH, BTCUSDT, etc): " << endl;
+    cin >> bot.pair;
+}
+
+void botData::setPrice(double foundPrice){
+    price = foundPrice;
+}
+
+void botData::setSellPercent{
+    cout << "Enter target gains percentage" << endl;
+    cin >> sellPercent;
+}
+
+void botData::tradingBot(){
+    string choice, amount;
+    bot.setPair();
+    bot.getPrice(pair);
+    cout << "Selected " << pair << ". Last known price of " << pair << ": " << price;
+
     cout << "Buying or selling? (1 for buying, 0 for selling)" << endl;
     cin >> choice;
     (choice == "0") ? choice = "SELL" : choice = "BUY";
@@ -58,53 +45,88 @@ void tradingBot(){
     cin >> amount;
     
     string curlTest = "curl -H \"X-MBX-APIKEY: ";
-    string secret = "YOURSECRETKEY"; //THIS IS THE KEY FOR THE HMAC SHA256
-    string APIKEY = "YOURPUBLICKEY";
-    string command = "\" -X POST 'https://api.binance.com/api/v3/order?symbol="+pair+"&side="+choice+"&type=LIMIT&timeInForce=GTC&quantity="+amount+"&price="+price+"&recvWindow=5000&timestamp=";
-    string time = getTime();
-    string message = "symbol="+pair+"&side="+choice+"&type=LIMIT&timeInForce=GTC&quantity="+amount+"&price="+price+"&recvWindow=5000&timestamp="+time;
-    auto api = HMACsha256(message, secret); //THIS IS THE HMAC SHA256 SIGNATURE. USES MESSAGE AND YOUR SECRET API KEY
-    curlTest = curlTest+APIKEY+command+time+"&signature="+api+"'";
+    string secret = "GCjpXJ4oysVZP3hrUACOKKawD5HblWkZPSOmjmpZN5AH6TklXJbcrl9E23UmhCJO"; //THIS IS THE KEY FOR THE HMAC SHA256
+    string APIKEY = "l1MHdfUocZLgLEqaM5u5XbJ3q2XDwwLQTTeZ4MvkVtb1sAsNPDVkWfUIInqek2Wg";
+ //   string command = "\" -X POST 'https://api.binance.com/api/v3/order?symbol="+pair+"&side="+choice+"&type=LIMIT&timeInForce=GTC&quantity="+amount+"&price="+price+"&recvWindow=5000&timestamp=";
+    getTime();
+   // string message = "symbol="+pair+"&side="+choice+"&type=LIMIT&timeInForce=GTC&quantity="+amount+"&price="+price+"&recvWindow=5000&timestamp="+epochTime;
+   // HMACsha256(message, secret);
+  //  curlTest = curlTest+APIKEY+command+time+"&signature="+signature+"'";
     cout << endl << endl << curlTest << endl << endl;
     system(curlTest.c_str());
     
     
 }
 
-void printPrice(json::value const & value){
+void botData::algoBot(){
+    algoCheck = false;
+    algoBuy = true;
+    bot.setPair();
+    bot.setSellPercent();
+    cout << "Gathering data on pair...This may take some time..." << endl;
+    getPrice(bot.pair);
+    cout << "PRICE: " << setprecision(8) << fixed << bot.price << endl;
+     pastPrice = price;
+    while(algoCheck == false)
+         (algoBuy == true) ? checkBuy() : checkSell();
+}
+
+void botData::checkBuy(){
+        //Coming soon
+}
+    
+void botData::checkSell(){
+    getPrice(bot.pair);
+    double difference;
+    cout << endl << "PRICE: " << setprecision(8) << fixed << bot.price << endl;
+    if(price > pastPrice){
+        difference = ((price - pastPrice)/price)*100;
+        cout << endl << "DIFF: " << difference << endl;
+        
+        if(difference >= sellPercent){
+            cout << "We should sell." << endl;
+        }
+    }
+}
+
+
+void printPrice(json::value const & value){ //temp
     if(!value.is_null()){
         json::value test = value;
-        cout << test["price"] << endl;
+        string v = test["price"].as_string();
+        double price = stof(v.c_str());
+        bot.setPrice(price);
+       // cout << test["price"] << endl << v << endl;
     }
     
 }
 
-void getPrice(const string pair){
-    http_client client(U("https://api.binance.com/"));
-    string full_request = "/api/v3/ticker/price?symbol=" + pair;
-    client.request(methods::GET, full_request).then([](http_response response)->
-                                                      pplx::task<json::value>{
-                                                          if(response.status_code() == status_codes::OK){
+void botData::getPrice(const string pair){
+    http_client client(U("https://api.binance.com/")); //The base connection for the RESTful API
+    string full_request = "/api/v3/ticker/price?symbol=" + pair; //The rest of the URL we are going to ping to the price
+    client.request(methods::GET, full_request).then([](http_response response)-> //Do a RESTful GET request on the full URL for the price
+                                                      pplx::task<json::value>{ //Result will be in JSON
+                                                          if(response.status_code() == status_codes::OK){ //If everything went okay, return the JSON (lambda function)
                                                               return response.extract_json();
                                                           }
                                                           return pplx::task_from_result(json::value());
                                                       })
     .then([](pplx::task<json::value> previousTask){
         try{
-            json::value const & v = previousTask.get();
-            printPrice(v);
+            json::value const & v = previousTask.get(); //Take the JSON gathered by the GET request and store it into CPP JSON object
+            printPrice(v); //pass that object to the print price
         }
-        catch (http_exception const & e){
+        catch (http_exception const & e){ //This is just here to output an error if one occurs.
             wcout << e.what() << endl;
         }
-    }).wait();
+    }).wait(); //Wait for all to finish
 }
 
 inline char binary_to_hex_digit(unsigned a) {
     return a + (a < 10 ? '0' : 'a' - 10);
 }
 
-std::string binary_to_hex(unsigned char const* binary, unsigned binary_len) {
+string binary_to_hex(unsigned char const* binary, unsigned binary_len) {
     string r(binary_len * 2, '\0');
     for(unsigned i = 0; i < binary_len; ++i) {
         r[i * 2] = binary_to_hex_digit(binary[i] >> 4);
@@ -113,19 +135,16 @@ std::string binary_to_hex(unsigned char const* binary, unsigned binary_len) {
     return r;
 }
 
-string HMACsha256(string const& message, string const& key) {
+void botData::HMACsha256(string const& message, string const& key) {
     unsigned char result[EVP_MAX_MD_SIZE];
     unsigned result_len = 0;
     HMAC(EVP_sha256(), key.data(), key.size(), reinterpret_cast<unsigned char const*>(message.data()), message.size(), result, &result_len);
-    return binary_to_hex(result, result_len);
+    signature = binary_to_hex(result, result_len);
 }
 
-
-
-string getTime(){
+void botData::getTime(){
     struct timeval tp;
     gettimeofday(&tp, NULL);
     long long mslong = (long long) tp.tv_sec * 1000L + tp.tv_usec / 1000;
-    auto time = to_string(mslong);
-    return time;
+    string time = to_string(mslong);
 }
