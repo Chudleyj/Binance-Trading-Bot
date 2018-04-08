@@ -24,10 +24,12 @@ using namespace std::chrono;                //Allows us to get epoch time withou
 
 class botData{
     double price,pastPrice,sellPercent;
+     bool algoCheck,algoBuy;
     string pair;
     string epochTime;
     string signature; //THIS IS THE HMAC SHA256 SIGNATURE. USES MESSAGE AND YOUR SECRET API KEY
-    bool algoCheck,algoBuy;
+    string secretKey = "YOUR SECRET KEY HERE"; //THIS IS THE KEY FOR THE HMAC SHA256
+     string APIKEY = "YOUR PUBLIC KEY HERE";
 public:
     void setPair();
     void setPrice(double foundPrice);
@@ -41,7 +43,8 @@ public:
     void HMACsha256(string const&, string const&);
     void checkBuy();
     void checkSell();
-    
+    void getHistoricalPrices();
+    void formatHistoricalPrices(json::value const &);
     
     
 }bot;

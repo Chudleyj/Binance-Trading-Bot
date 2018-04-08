@@ -1,17 +1,19 @@
 #include "BinanceBot.h"
 
+void init();
+
 int main(int argc, char* argv[])
 {
     cout << endl << "Welcome to the C++ Binance Bot. WARNING --> This is still an extremly early alpha build. Use at your own risk." << endl;
-    bot.init();
+    init();
     return 0;
 }
 
-void botData::init(){
+void init(){
     string input;
     cout << endl << "Choose bot mode: 1 = trading" << endl;
     cin >> input;
-    (input == "1") ? tradingBot() : algoBot(); //TEMPORARY
+    (input == "1") ? bot.tradingBot() : bot.algoBot(); //TEMPORARY
 }
 
 void botData::setPair(){
@@ -23,7 +25,7 @@ void botData::setPrice(double foundPrice){
     price = foundPrice;
 }
 
-void botData::setSellPercent{
+void botData::setSellPercent(){
     cout << "Enter target gains percentage" << endl;
     cin >> sellPercent;
 }
@@ -45,12 +47,10 @@ void botData::tradingBot(){
     cin >> amount;
     
     string curlTest = "curl -H \"X-MBX-APIKEY: ";
-    string secret = "GCjpXJ4oysVZP3hrUACOKKawD5HblWkZPSOmjmpZN5AH6TklXJbcrl9E23UmhCJO"; //THIS IS THE KEY FOR THE HMAC SHA256
-    string APIKEY = "l1MHdfUocZLgLEqaM5u5XbJ3q2XDwwLQTTeZ4MvkVtb1sAsNPDVkWfUIInqek2Wg";
  //   string command = "\" -X POST 'https://api.binance.com/api/v3/order?symbol="+pair+"&side="+choice+"&type=LIMIT&timeInForce=GTC&quantity="+amount+"&price="+price+"&recvWindow=5000&timestamp=";
     getTime();
    // string message = "symbol="+pair+"&side="+choice+"&type=LIMIT&timeInForce=GTC&quantity="+amount+"&price="+price+"&recvWindow=5000&timestamp="+epochTime;
-   // HMACsha256(message, secret);
+   // HMACsha256(message, bot.secretKey);
   //  curlTest = curlTest+APIKEY+command+time+"&signature="+signature+"'";
     cout << endl << endl << curlTest << endl << endl;
     system(curlTest.c_str());
@@ -72,9 +72,41 @@ void botData::algoBot(){
 }
 
 void botData::checkBuy(){
-        //Coming soon
+    bot.getHistoricalPrices();
 }
-    
+
+void botData::formatHistoricalPrices(json::value const &value){ //temp
+    if(!value.is_null()){
+        json::value test = value;
+        cout << endl << "DID IT WORK?" << endl <<  test << endl;
+    }
+}
+
+void botData::getHistoricalPrices(){ //Get all price data since 1/1/2017 over an interval
+    //https://api.binance.com/api/v1/klines?symbol=ETHBTC&interval=1h&startTime=1523059200
+    http_client client(U(RESTfulHost));
+    string interval, timestamp = "1483243199000";
+    cout << endl << "Enter interval for data collection (Ex: 1h, 2h, 4h, 5m, etc)" << endl;
+    cin >> interval;
+    string full_request = "/api/v1/klines?symbol="+pair+"&interval="+interval+"&startTime="+timestamp;
+    client.request(methods::GET, full_request).then([](http_response response)-> //Do a RESTful GET request on the full URL for the price
+                                                    pplx::task<json::value>{ //Result will be in JSON
+                                                        if(response.status_code() == status_codes::OK){ //If everything went okay, return the JSON (lambda function)
+                                                            return response.extract_json();
+                                                        }
+                                                        return pplx::task_from_result(json::value());
+                                                    })
+    .then([](pplx::task<json::value> previousTask){
+        try{
+            json::value const & v = previousTask.get(); //Take the JSON gathered by the GET request and store it into CPP JSON object
+            bot.formatHistoricalPrices(v);
+        }
+        catch (http_exception const & e){ //This is just here to output an error if one occurs.
+            wcout << e.what() << endl;
+        }
+    }).wait(); //Wait for all to finish
+}
+
 void botData::checkSell(){
     getPrice(bot.pair);
     double difference;
@@ -90,7 +122,7 @@ void botData::checkSell(){
 }
 
 
-void printPrice(json::value const & value){ //temp
+void printPrice(json::value const &value){ //temp
     if(!value.is_null()){
         json::value test = value;
         string v = test["price"].as_string();
@@ -102,7 +134,7 @@ void printPrice(json::value const & value){ //temp
 }
 
 void botData::getPrice(const string pair){
-    http_client client(U("https://api.binance.com/")); //The base connection for the RESTful API
+    http_client client(U(RESTfulHost)); //The base connection for the RESTful API
     string full_request = "/api/v3/ticker/price?symbol=" + pair; //The rest of the URL we are going to ping to the price
     client.request(methods::GET, full_request).then([](http_response response)-> //Do a RESTful GET request on the full URL for the price
                                                       pplx::task<json::value>{ //Result will be in JSON
