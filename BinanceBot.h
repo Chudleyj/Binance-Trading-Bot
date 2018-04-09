@@ -11,6 +11,9 @@
 #include <sstream>
 #include <stdio.h>
 #include <iomanip> //Allows one to see prices of small satoshi's worth coins.
+#include <fstream> //File opens/closes
+#include <vector>
+#include <boost/algorithm/string.hpp> //Boost::erase
 
 using namespace utility;                    // Common utilities like string conversions
 using namespace web;                        // Common features like URIs.
@@ -23,13 +26,16 @@ using namespace std::chrono;                //Allows us to get epoch time withou
 #define RESTfulHost "https://api.binance.com/"
 
 class botData{
-    double price,pastPrice,sellPercent;
-     bool algoCheck,algoBuy;
+    double price,pastPrice,sellPercent,RSI;
+    vector<long> openTime,closeTime,numTrades;
+    vector <long double> open, high, low, close, volume, quoteAssetVolume,takerBuyAssetVol,takerBuyQuoteAssetVol,Ignore;
+    bool algoCheck,algoBuy;
     string pair;
     string epochTime;
     string signature; //THIS IS THE HMAC SHA256 SIGNATURE. USES MESSAGE AND YOUR SECRET API KEY
     string secretKey = "YOUR SECRET KEY HERE"; //THIS IS THE KEY FOR THE HMAC SHA256
-     string APIKEY = "YOUR PUBLIC KEY HERE";
+     string APIKEY = "YOUR KEY HERE";
+
 public:
     void setPair();
     void setPrice(double foundPrice);
@@ -45,6 +51,7 @@ public:
     void checkSell();
     void getHistoricalPrices();
     void formatHistoricalPrices(json::value const &);
+    void calcRSI();
     
     
 }bot;
