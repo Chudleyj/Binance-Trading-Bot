@@ -73,14 +73,96 @@ void botData::algoBot(){
 
 void botData::checkBuy(){
     bot.getHistoricalPrices();
+    bot.calcRSI();
 }
 
+void botData::calcRSI(){
+    //RSI = 100 – 100 / ( 1 + RS )
+    //THIS MAY NOT BE ACCURATE YET. UNCONFIRMED. 
+    vector<double> upwardMove,  downwardMove;
+    vector<int> currentPeriod(close.end() - 14, close.end());
+    double averageUpwardMove, averageDownwardMove, relativeStrength;
+    
+    for(int i = 0; i < currentPeriod.size()-1; i++){
+        if(currentPeriod[i+1] > currentPeriod[i])
+            upwardMove.push_back(currentPeriod[i+1]-currentPeriod[i]);
+        else
+            upwardMove.push_back(0);
+        if(currentPeriod[i+1] < currentPeriod[i])
+            downwardMove.push_back(currentPeriod[i]-currentPeriod[i+1]);
+        else
+            downwardMove.push_back(0);
+    }
+    averageUpwardMove = accumulate( upwardMove.begin(), upwardMove.end(), 0.0)/upwardMove.size();
+    averageDownwardMove = accumulate( downwardMove.begin(), downwardMove.end(), 0.0)/downwardMove.size();
+    relativeStrength = averageUpwardMove/averageDownwardMove;
+    RSI = 100 - (100/(1+relativeStrength));
+    cout << endl << "RSI: " << RSI << endl;
+}
 void botData::formatHistoricalPrices(json::value const &value){ //temp
     if(!value.is_null()){
-        json::value test = value;
-        cout << endl << "DID IT WORK?" << endl <<  test << endl;
-    }
-}
+        json::value historicalData = value;
+        ofstream outputFile("test.txt"); //output to file
+        outputFile << historicalData; //store JSON into file
+        ifstream inputFile("test.txt"); //input from file
+        string historicalDataString;
+        inputFile >> historicalDataString; //store value from file into string
+        boost::erase_first(historicalDataString, "["); //formatting for parsing
+        historicalDataString.append("\"]"); //formatting for parsing
+        int count = 0;
+        string tempHolder;
+        for (string::iterator it = historicalDataString.begin(); it < historicalDataString.end(); it++){
+            if(*it != '[' && *it != '"' && *it !=']'){
+                if(*it != ',')
+                    tempHolder.append(1,*it);
+                else{
+                    switch (count){
+                        case 0:
+                            openTime.push_back(stof(tempHolder.c_str()));
+                            break;
+                        case 1:
+                            open.push_back(stof(tempHolder.c_str()));
+                            break;
+                        case 2:
+                            high.push_back(stof(tempHolder.c_str()));
+                            break;
+                        case 3:
+                            low.push_back(stof(tempHolder.c_str()));
+                            break;
+                        case 4:
+                            close.push_back(stof(tempHolder.c_str()));
+                            break;
+                        case 5:
+                            volume.push_back(stof(tempHolder.c_str()));
+                            break;
+                        case 6:
+                            closeTime.push_back(stof(tempHolder.c_str()));
+                            break;
+                        case 7:
+                            quoteAssetVolume.push_back(stof(tempHolder.c_str()));
+                            break;
+                        case 8:
+                            numTrades.push_back(stof(tempHolder.c_str()));
+                            break;
+                        case 9:
+                            takerBuyAssetVol.push_back(stof(tempHolder.c_str()));
+                            break;
+                        case 10:
+                            takerBuyQuoteAssetVol.push_back(stof(tempHolder.c_str()));
+                            break;
+                        case 11:
+                            Ignore.push_back(stof(tempHolder.c_str()));
+                            break;
+                        default:
+                            break;
+                    }//end of switch
+                    (count == 11) ? count = 0 : count++;
+                    tempHolder = "";
+                }//end of else
+            }//end of 2nd if
+        } //end of for loop
+    }//end of first if
+}//End of function
 
 void botData::getHistoricalPrices(){ //Get all price data since 1/1/2017 over an interval
     //https://api.binance.com/api/v1/klines?symbol=ETHBTC&interval=1h&startTime=1523059200
