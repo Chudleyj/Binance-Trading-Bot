@@ -2,7 +2,7 @@
 
 void init();
 
-int main(int argc, char* argv[])
+auto main(int argc, char* argv[]) -> int
 {
     cout << endl << "Welcome to the C++ Binance Bot. WARNING --> This is still an extremly early alpha build. Use at your own risk." << endl;
     init();
@@ -47,13 +47,13 @@ void botData::tradingBot(){
     cin >> amount;
     
     string curlTest = "curl -H \"X-MBX-APIKEY: ";
- //   string command = "\" -X POST 'https://api.binance.com/api/v3/order?symbol="+pair+"&side="+choice+"&type=LIMIT&timeInForce=GTC&quantity="+amount+"&price="+price+"&recvWindow=5000&timestamp=";
+  // string command = "\" -X POST 'https://api.binance.com/api/v3/order?symbol="+pair+"&side="+choice+"&type=LIMIT&timeInForce=GTC&quantity="+amount+"&price="+price+"&recvWindow=5000&timestamp=";
     getTime();
-   // string message = "symbol="+pair+"&side="+choice+"&type=LIMIT&timeInForce=GTC&quantity="+amount+"&price="+price+"&recvWindow=5000&timestamp="+epochTime;
+   //string message = "symbol="+pair+"&side="+choice+"&type=LIMIT&timeInForce=GTC&quantity="+amount+"&price="+price+"&recvWindow=5000&timestamp="+epochTime;
    // HMACsha256(message, bot.secretKey);
-  //  curlTest = curlTest+APIKEY+command+time+"&signature="+signature+"'";
+    //curlTest = curlTest+APIKEY+command+time+"&signature="+signature+"'";
     cout << endl << endl << curlTest << endl << endl;
-    system(curlTest.c_str());
+   // system(curlTest.c_str());
     
     
 }
@@ -76,29 +76,27 @@ void botData::checkBuy(){
     bot.calcRSI();
 }
 
-void botData::calcRSI(){
-    //RSI = 100 – 100 / ( 1 + RS )
-    //THIS MAY NOT BE ACCURATE YET. UNCONFIRMED. 
-    vector<double> upwardMove,  downwardMove;
-    vector<int> currentPeriod(close.end() - 14, close.end());
-    double averageUpwardMove, averageDownwardMove, relativeStrength;
+void botData::calcRSI()
+{
+    vector<long double> upwardMove,  downwardMove;
+    vector<long double> currentPeriod(close.end() - 15, close.end());
     
-    for(int i = 0; i < currentPeriod.size()-1; i++){
-        if(currentPeriod[i+1] > currentPeriod[i])
-            upwardMove.push_back(currentPeriod[i+1]-currentPeriod[i]);
-        else
-            upwardMove.push_back(0);
-        if(currentPeriod[i+1] < currentPeriod[i])
-            downwardMove.push_back(currentPeriod[i]-currentPeriod[i+1]);
-        else
-            downwardMove.push_back(0);
+    for(int i = 0; i < currentPeriod.size()-1; i++)
+    {
+        auto diff = currentPeriod[i+1] - currentPeriod[i];
+        
+        upwardMove.push_back(max(diff,0.0l));
+        downwardMove.push_back(-min(diff,0.0l));
     }
-    averageUpwardMove = accumulate( upwardMove.begin(), upwardMove.end(), 0.0)/upwardMove.size();
-    averageDownwardMove = accumulate( downwardMove.begin(), downwardMove.end(), 0.0)/downwardMove.size();
-    relativeStrength = averageUpwardMove/averageDownwardMove;
-    RSI = 100 - (100/(1+relativeStrength));
+    
+    auto averageUpwardMove   = accumulate( upwardMove.begin(), upwardMove.end(),     0.0l)/upwardMove.size();
+    auto averageDownwardMove = accumulate( downwardMove.begin(), downwardMove.end(), 0.0l)/downwardMove.size();
+    
+    auto relativeStrength = averageUpwardMove/averageDownwardMove;
+    auto RSI = 100 - (100/(1+relativeStrength));
     cout << endl << "RSI: " << RSI << endl;
 }
+
 void botData::formatHistoricalPrices(json::value const &value){ //temp
     if(!value.is_null()){
         json::value historicalData = value;
@@ -236,11 +234,11 @@ void botData::getPrice(const string pair){
     }).wait(); //Wait for all to finish
 }
 
-inline char binary_to_hex_digit(unsigned a) {
+inline auto binary_to_hex_digit(unsigned a) -> char{
     return a + (a < 10 ? '0' : 'a' - 10);
 }
 
-string binary_to_hex(unsigned char const* binary, unsigned binary_len) {
+auto binary_to_hex(unsigned char const* binary, unsigned binary_len) -> string {
     string r(binary_len * 2, '\0');
     for(unsigned i = 0; i < binary_len; ++i) {
         r[i * 2] = binary_to_hex_digit(binary[i] >> 4);

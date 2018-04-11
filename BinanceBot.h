@@ -34,7 +34,7 @@ class botData{
     string epochTime;
     string signature; //THIS IS THE HMAC SHA256 SIGNATURE. USES MESSAGE AND YOUR SECRET API KEY
     string secretKey = "YOUR SECRET KEY HERE"; //THIS IS THE KEY FOR THE HMAC SHA256
-     string APIKEY = "YOUR KEY HERE";
+    string APIKEY = "YOUR KEY HERE";
 
 public:
     void setPair();
@@ -55,7 +55,6 @@ public:
     
     
 }bot;
-
 
 
 
