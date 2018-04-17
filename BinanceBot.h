@@ -14,6 +14,7 @@
 #include <fstream> //File opens/closes
 #include <vector>
 #include <boost/algorithm/string.hpp> //Boost::erase
+#include <stdlib.h> //abs val
 
 using namespace utility;                    // Common utilities like string conversions
 using namespace web;                        // Common features like URIs.

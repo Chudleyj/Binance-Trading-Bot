@@ -5,10 +5,12 @@ void init();
 auto main(int argc, char* argv[]) -> int
 {
     cout << endl << "Welcome to the C++ Binance Bot. WARNING --> This is still an extremly early alpha build. Use at your own risk." << endl;
+    
     init();
     return 0;
 }
 
+    
 void init(){
     string input;
     cout << endl << "Choose bot mode: 1 = trading" << endl;
@@ -78,23 +80,40 @@ void botData::checkBuy(){
 
 void botData::calcRSI()
 {
-    vector<long double> upwardMove,  downwardMove;
-    vector<long double> currentPeriod(close.end() - 15, close.end());
+    vector<long double> gain, loss, change, avgGain, avgLoss, RS, RSI;
+    vector<long double> currentPeriod(close.end()-33, close.end());
+    double sumGain = 0, sumLoss = 0;
+    for(int i = 1; i < currentPeriod.size(); i++){
+        change.push_back(currentPeriod[i] - currentPeriod[i-1]);
+        cout << endl << currentPeriod[i] << endl;
+    }
+    cout << endl << "******* " << close.back() << endl;
     
-    for(int i = 0; i < currentPeriod.size()-1; i++)
-    {
-        auto diff = currentPeriod[i+1] - currentPeriod[i];
-        
-        upwardMove.push_back(max(diff,0.0l));
-        downwardMove.push_back(-min(diff,0.0l));
+    for(int i = 0; i < change.size(); i++){
+        change[i] > 0 ? gain.push_back(change[i]) : gain.push_back(0);
+        change[i] < 0 ? loss.push_back(abs(change[i])) : loss.push_back(0);
+    }
+    for(int i = 0; i < 14; i++){
+        sumGain += gain[i];
+        sumLoss += loss[i];
+    }
+    avgGain.push_back(sumGain/14);
+    avgLoss.push_back(sumLoss/14);
+    cout << endl << "gain: " << avgGain[0] << " loss: " << avgLoss[0] << endl;
+    for(int i = 14, j = 1; i < gain.size(); i++){
+        avgGain.push_back(((avgGain[j-1] * 13)+ gain[i])/14);
+        avgLoss.push_back(((avgLoss[j-1] * 13)+ loss[i])/14);
+        j++;
     }
     
-    auto averageUpwardMove   = accumulate( upwardMove.begin(), upwardMove.end(),     0.0l)/upwardMove.size();
-    auto averageDownwardMove = accumulate( downwardMove.begin(), downwardMove.end(), 0.0l)/downwardMove.size();
+    for(int i = 0; i < avgGain.size(); i++)
+        RS.push_back(avgGain[i]/avgLoss[i]);
     
-    auto relativeStrength = averageUpwardMove/averageDownwardMove;
-    auto RSI = 100 - (100/(1+relativeStrength));
-    cout << endl << "RSI: " << RSI << endl;
+    for(int i = 0; i < RS.size(); i++)
+        avgLoss[i] == 0 ? RSI.push_back(100) : RSI.push_back(100 - (100/(1+RS[i])));
+    
+    
+    cout << endl << "RSI: " << RSI.back() << endl;
 }
 
 void botData::formatHistoricalPrices(json::value const &value){ //temp
@@ -102,12 +121,18 @@ void botData::formatHistoricalPrices(json::value const &value){ //temp
         json::value historicalData = value;
         ofstream outputFile("test.txt"); //output to file
         outputFile << historicalData; //store JSON into file
+        outputFile.close();
         ifstream inputFile("test.txt"); //input from file
-        string historicalDataString;
-        inputFile >> historicalDataString; //store value from file into string
+        string historicalDataString="";
+        string appendTemp;
+        while(!inputFile.eof()){
+        getline(inputFile,appendTemp); //store value from file into string
+        historicalDataString.append(appendTemp);
+        }
         boost::erase_first(historicalDataString, "["); //formatting for parsing
         historicalDataString.append("\"]"); //formatting for parsing
         int count = 0;
+        cout << endl << endl << "------ " << historicalDataString << endl << endl;
         string tempHolder;
         for (string::iterator it = historicalDataString.begin(); it < historicalDataString.end(); it++){
             if(*it != '[' && *it != '"' && *it !=']'){
@@ -168,7 +193,7 @@ void botData::getHistoricalPrices(){ //Get all price data since 1/1/2017 over an
     string interval, timestamp = "1483243199000";
     cout << endl << "Enter interval for data collection (Ex: 1h, 2h, 4h, 5m, etc)" << endl;
     cin >> interval;
-    string full_request = "/api/v1/klines?symbol="+pair+"&interval="+interval+"&startTime="+timestamp;
+    string full_request = "/api/v1/klines?symbol="+pair+"&interval="+interval;
     client.request(methods::GET, full_request).then([](http_response response)-> //Do a RESTful GET request on the full URL for the price
                                                     pplx::task<json::value>{ //Result will be in JSON
                                                         if(response.status_code() == status_codes::OK){ //If everything went okay, return the JSON (lambda function)
