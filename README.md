@@ -1,8 +1,7 @@
 # Binance-Trading-Bot
 A C++ bot that uses Bianance's RESTful API alongside Microsoft's C++ RESTsdk
 
-So far this bot has only been confirmed to connect to Binance's RESTful API. 
-The implementation of the HMAC SHA256 algorithim to generate a signiture works, but the rest of the program is not yet fitted to run with it as I wrote it in C and the rest is in C++. 
+Back testing of this bot is now up and running. It is using a simple algorithm but works 100%. So far, the algorithm has shown 5% profits over a 30 day period. Algorithm definetly needs massive improvements and far more technical indictaors, but the framework of this bot works. 
 
 Binance API: https://github.com/binance-exchange/binance-official-api-docs
 
