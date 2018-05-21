@@ -26,39 +26,63 @@ using namespace std::chrono;                //Allows us to get epoch time withou
 
 #define RESTfulHost "https://api.binance.com/"
 
-class botData{
-    double price,pastPrice,sellPercent, USDT, BTC=0, LTC=0, ETH=0, BCC=0, BNB=0, NEO=0, ADA=0, QTUM=0, total;
-    vector<long> openTime,closeTime,numTrades;
-    vector <long double> open, high, low, close, volume, quoteAssetVolume,takerBuyAssetVol,takerBuyQuoteAssetVol,ignore, RSI, stochRSI;
-    bool algoCheck,algoBuy;
-    string pair;
-    string epochTime;
-    string signature; //THIS IS THE HMAC SHA256 SIGNATURE. USES MESSAGE AND YOUR SECRET API KEY
-    string secretKey = "YOUR SECRET KEY HERE"; //THIS IS THE KEY FOR THE HMAC SHA256
-    string APIKEY = "YOUR KEY HERE";
+class serverData{
+  double price;
+  string pair;
+  string epochTime;
+  string signature; //THIS IS THE HMAC SHA256 SIGNATURE. USES MESSAGE AND YOUR SECRET API KEY
+  string secretKey = "YOUR SECRET KEY HERE"; //THIS IS THE KEY FOR THE HMAC SHA256
+  string APIKEY = "YOUR KEY HERE";
+ public:
+  void setPair();
+  void inputPair(const string input){this->pair = input;}
+  void setPrice();
+  void inputPrice(double foundPrice);
+  void getTime(); //Get epoch time (It will be needed for the signature)
+  void HMACsha256(string const&, string const&);
+  void setSignature(const string sig){this->signature=sig;}
+  auto getPrice()->double{return this->price;}
+  auto getPair()->string{return this->pair;}
+}servData;
 
-public:
-    void setPair();
-    void setPrice(double foundPrice);
+class backTesting{
+  double USDT, BTC=0, LTC=0, ETH=0, BCC=0, BNB=0, NEO=0, ADA=0, QTUM=0, total;
+  double pastPrice;
+ public:
+  void backTest();//temp
+  void simBuy();
+  void simSell();
+  void getTotal();
+}backTest;
+
+class algorithmBot{
+  double sellPercent;
+  bool algoCheck,algoBuy;
+ public:
     void setSellPercent();
-    void init();
-    void tradingBot();
-    void algoBot();
-    void getPrice();
-    void formatPrice(json::value const &);
-    void getTime(); //Get epoch time (It will be needed for the signature)
-    void HMACsha256(string const&, string const&);
     void checkBuy();
     void checkSell();
-    void getHistoricalPrices();
-    void formatHistoricalPrices(json::value const &);
+    void algoBot();
+}algoBot;
+
+class TechnicalAnalysis{
+  vector<long double> RSI, stochRSI;
+  public:
     void calcRSI();
     void calcStochRSI();
-    void backTest();//temp
-    void clearVecs();
-    void simBuy();
-    void simSell();
-    void getTotal();
+    auto getRSIback()->long double{return RSI.back();}
+}TechnicalAnalysisCalcs;
 
-}bot;
+class pricingData{
+    vector<long> openTime,closeTime,numTrades;
+    vector <long double> open, high, low, close, volume, quoteAssetVolume,takerBuyAssetVol,takerBuyQuoteAssetVol,ignore;
+ public:
+    friend class TechnicalAnalysis;
+    void tradingBot();
+    void formatPrice(json::value const &);
+    void getHistoricalPrices();
+    void formatHistoricalPrices(json::value const &);
+    void clearVecs();
+}priceData;
+
 #endif /* BinanceBot_h */

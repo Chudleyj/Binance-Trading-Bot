@@ -5,7 +5,7 @@ void init();
 auto main(int argc, char* argv[]) -> int{
     cout << endl << "Welcome to the C++ Binance Bot. WARNING --> This is still an extremly early alpha build. Use at your own risk." << endl << flush;
     // init();
-    bot.backTest();
+    backTest.backTest();
     return 0;
 }
 
@@ -13,24 +13,40 @@ void init(){
     string input;
     cout << endl << "Choose bot mode: 1 = trading" << endl;
     cin >> input;
-    (input == "1") ? bot.tradingBot() : bot.algoBot(); //TEMPORARY
+    //(input == "1") ? priceData.tradingBot() : algoBot.algoBot(); //TEMPORARY
 }
 
-void botData::setPair(){
+void serverData::setPair(){
     cout << "Select trading pair (ex: LTCBTC, TRXETH, BTCUSDT, etc): " << endl;
-    cin >> bot.pair;
+    cin >> pair;
 }
 
-void botData::setPrice(double foundPrice){
+void serverData::inputPrice(double foundPrice){
     price = foundPrice;
 }
 
-void botData::setSellPercent(){
-    cout << "Enter target gains percentage" << endl;
-    cin >> sellPercent;
+void serverData::setPrice(){
+  http_client client(U(RESTfulHost)); //The base connection for the RESTful API
+  string full_request = "/api/v3/ticker/price?symbol=" + pair; //The rest of the URL we are going to ping to the price
+  client.request(methods::GET, full_request).then([](http_response response)-> //Do a RESTful GET request on the full URL for the price
+                                                pplx::task<json::value>{ //Result will be in JSON
+                                                    if(response.status_code() == status_codes::OK){ //If everything went okay, return the JSON (lambda function)
+                                                        return response.extract_json();
+                                                    }
+                                                    return pplx::task_from_result(json::value());
+                                                })
+  .then([](pplx::task<json::value> previousTask){
+    try{
+        json::value const & v = previousTask.get(); //Take the JSON gathered by the GET request and store it into CPP JSON object
+        printPrice(v); //pass that object to the print price
+    }
+    catch (http_exception const & e){ //This is just here to output an error if one occurs.
+        wcout << e.what() << endl;
+    }
+ }).wait(); //Wait for all to finish
 }
 
-void botData::tradingBot(){
+/* void botData::tradingBot(){
     string choice, amount;
     bot.setPair();
     bot.getPrice();
@@ -55,75 +71,88 @@ void botData::tradingBot(){
     // system(curlTest.c_str());
 
 
+}*/
+
+void serverData::HMACsha256(string const& message, string const& key) {
+    unsigned char result[EVP_MAX_MD_SIZE];
+    unsigned result_len = 0;
+    HMAC(EVP_sha256(), key.data(), key.size(), reinterpret_cast<unsigned char const*>(message.data()), message.size(), result, &result_len);
+    servData.setSignature(binary_to_hex(result, result_len));
 }
 
-void botData::getTotal(){
+void serverData::getTime(){
+    struct timeval tp;
+    gettimeofday(&tp, NULL);
+    long long mslong = (long long) tp.tv_sec * 1000L + tp.tv_usec / 1000;
+    string time = to_string(mslong);
+}
+
+void backTesting::getTotal(){
     total=0;
     double test = 0;
 
     if(BTC>0){
-    bot.pair = "BTCUSDT";
-    price = 0;
-    getPrice();
-    test = BTC * price;
+    servData.inputPair("BTCUSDT");
+    servData.inputPrice(0);
+    servData.setPrice();
+    test = BTC * servData.getPrice();
     total += test;
     }
 
 
     if(LTC>0){
-    bot.pair = "LTCUSDT";
-    price = 0;
-    getPrice();
-    test = LTC * price;
-    cout <<"price: " << price << endl;
+    servData.inputPair("LTCUSDT");
+    servData.inputPrice(0);
+    servData.setPrice();
+    test = LTC * servData.getPrice();
     total += test;
     }
 
     if(ETH>0){
-    bot.pair = "ETHUSDT";
-    price = 0;
-    getPrice();
-    test = ETH * price;
+    servData.inputPair("ETHUSDT");
+    servData.inputPrice(0);
+    servData.setPrice();
+    test = ETH * servData.getPrice();
     total += test;
     }
 
     if(BCC>0){
-    bot.pair = "BCCUSDT";
-    price = 0;
-    getPrice();
-    test = BCC * price;
+    servData.inputPair("BCCUSDT");
+    servData.inputPrice(0);
+    servData.setPrice();
+    test = BCC * servData.getPrice();
     total += test;
     }
 
     if(BNB>0){
-    bot.pair = "BNBUSDT";
-    price = 0;
-    getPrice();
-    test = BNB * price;
+    servData.inputPair("BNBUSDT");
+    servData.inputPrice(0);
+    servData.setPrice();
+    test = BNB * servData.getPrice();
     total += test;
     }
 
     if(NEO>0){
-    bot.pair = "NEOUSDT";
-    price = 0;
-    getPrice();
-    test = NEO * price;
+    servData.inputPair("NEOUSDT");
+    servData.inputPrice(0);
+    servData.setPrice();
+    test = NEO * servData.getPrice();
     total += test;
     }
 
     if(ADA>0){
-    bot.pair = "ADAUSDT";
-    price = 0;
-    getPrice();
-    test = ADA * price;
+    servData.inputPair("ADAUSDT");
+    servData.inputPrice(0);
+    servData.setPrice();
+    test = ADA * servData.getPrice();
     total += test;
     }
 
     if(QTUM>0){
-    bot.pair = "QTUMUSDT";
-    price = 0;
-    getPrice();
-    test = QTUM * price;
+    servData.inputPair("QTUMUSDT");
+    servData.inputPrice(0);
+    servData.setPrice();
+    test = QTUM * servData.getPrice();
     total += test;
     }
 
@@ -135,48 +164,50 @@ void botData::getTotal(){
     account.close();
 }
 
-void botData::simSell(){
+void backTesting::simSell(){
     string append;
-    getPrice();
+    servData.setPrice();
+    string pair = servData.getPair();
+    double price = servData.getPrice();
     if(pair == "BTCUSDT"){
-        USDT = USDT + BTC * price;
-        append = "Sold " + to_string(BTC) + "BTC for a total of: $" + to_string(BTC*price);
-        BTC = 0;
+        this->USDT = this->USDT + this->BTC * price;
+        append = "Sold " + to_string(this->BTC) + "BTC for a total of: $" + to_string(BTC*price);
+        this->BTC = 0;
     }
     else if(pair == "ETHUSDT"){
-        USDT = USDT + ETH * price;
-        append = "Sold " + to_string(ETH) + "ETH for a total of: $" + to_string(ETH*price);
-        ETH = 0;
+        this->USDT = this->USDT + this->ETH * price;
+        append = "Sold " + to_string(this->ETH) + "ETH for a total of: $" + to_string(ETH*price);
+        this->ETH = 0;
     }
     else if(pair == "BCCUSDT"){
-        USDT = USDT + BCC * price;
-        append = "Sold " + to_string(BCC) + "BCC for a total of: $" + to_string(BCC*price);
-        BCC = 0;
+        this->USDT = this->USDT + this->BCC * price;
+        append = "Sold " + to_string(this->BCC) + "BCC for a total of: $" + to_string(BCC*price);
+        this->BCC = 0;
     }
     else if(pair == "LTCUSDT"){
-        USDT = USDT + LTC * price;
-        append = "Sold " + to_string(LTC) + "LTC for a total of: $" + to_string(LTC*price);
-        LTC = 0;
+        this->USDT = this->USDT + this->LTC * price;
+        append = "Sold " + to_string(this->LTC) + "LTC for a total of: $" + to_string(LTC*price);
+        this->LTC = 0;
     }
     else if(pair == "BNBUSDT"){
-        USDT = USDT + BNB * price;
-        append = "Sold " + to_string(BNB) + "BNB for a total of: $" + to_string(BNB*price);
-        BNB = 0;
+        this->USDT = this->USDT + this->BNB * price;
+        append = "Sold " + to_string(this->BNB) + "BNB for a total of: $" + to_string(BNB*price);
+        this->BNB = 0;
     }
     else if(pair == "NEOUSDT"){
-        USDT = USDT + NEO * price;
-        append = "Sold " + to_string(NEO) + "NEO for a total of: $" + to_string(NEO*price);
-        NEO = 0;
+        this->USDT = this->USDT + this->NEO * price;
+        append = "Sold " + to_string(this->NEO) + "NEO for a total of: $" + to_string(NEO*price);
+        this->NEO = 0;
     }
     else if(pair == "ADAUSDT"){
-        USDT = USDT + ADA * price;
-        append = "Sold " + to_string(ADA) + "ADA for a total of: $" + to_string(ADA*price);
-        ADA = 0;
+        this->USDT = this->USDT + this->ADA * price;
+        append = "Sold " + to_string(this->ADA) + "ADA for a total of: $" + to_string(ADA*price);
+        this->ADA = 0;
     }
     else{
-        USDT = USDT + QTUM * price;
-        append = "Sold " + to_string(QTUM) + "QTUM for a total of: $" + to_string(QTUM*price);
-        QTUM = 0;
+        this->USDT = this->USDT + this->QTUM * price;
+        append = "Sold " + to_string(this->QTUM) + "QTUM for a total of: $" + to_string(QTUM*price);
+        this->QTUM = 0;
     }
 
     string trade = "\n\nFound sell. Making sell on pair " + pair + " at price: $" + to_string(price) + ".\n" + append + "\n USDT remaining: " + to_string(USDT);
@@ -187,13 +218,16 @@ void botData::simSell(){
     account.close();
 }
 
-void botData::simBuy(){
+void backTesting::simBuy(){
     if(USDT > 0){
         string append;
         double buy;
         double purchaseAmt = USDT * 25 / 100;
         USDT = USDT - purchaseAmt;
-        getPrice();
+        servData.setPrice();
+        string pair = servData.getPair();
+        double price = servData.getPrice();
+
         if(pair == "BTCUSDT"){
             buy = purchaseAmt/price;
             BTC = buy + BTC;
@@ -234,6 +268,7 @@ void botData::simBuy(){
             QTUM = buy + QTUM;
             append = "Purchased " + to_string(buy) + "QTUM for a total of: $" + to_string(purchaseAmt);
         }
+
         string trade = "\n\nFound buy. Making buy on pair " + pair + " at price: $" + to_string(price) + ".\n" + append + "\n USDT remaining: " + to_string(USDT);;
         cout << endl << endl << trade << endl << endl;
         ofstream account("backTest.txt", ofstream::out|ofstream::app);
@@ -242,115 +277,151 @@ void botData::simBuy(){
     }
 }
 
-void botData::backTest(){
+void backTesting::backTest(){
     USDT = 1000;
     double total=0;
     int count = 0;
+    long double RSIcheck;
     while(1){
-        pair = "BTCUSDT";
-        checkBuy();
-        if(RSI.back() < 40.0 && BTC == 0)
+        servData.inputPair("BTCUSDT");
+        algoBot.checkBuy();
+        RSIcheck = TechnicalAnalysisCalcs.getRSIback();
+        if(RSIcheck < 40.0 && BTC == 0)
             simBuy();
 
-        pair = "LTCUSDT";
-        checkBuy();
-        if(RSI.back() < 40.0 && LTC == 0)
+        servData.inputPair("LTCUSDT");
+        algoBot.checkBuy();
+        RSIcheck = TechnicalAnalysisCalcs.getRSIback();
+        if(RSIcheck < 40.0 && LTC == 0)
             simBuy();
 
-        pair = "ETHUSDT";
-        checkBuy();
-        if(RSI.back() < 40.0 && ETH == 0)
+        servData.inputPair("ETHUSDT");
+        algoBot.checkBuy();
+        RSIcheck = TechnicalAnalysisCalcs.getRSIback();
+        if(RSIcheck < 40.0 && ETH == 0)
             simBuy();
 
-        pair = "BCCUSDT";
-        checkBuy();
-        if(RSI.back() < 40.0 && BCC == 0)
+        servData.inputPair("BCCUSDT");
+        algoBot.checkBuy();
+        RSIcheck = TechnicalAnalysisCalcs.getRSIback();
+        if(RSIcheck < 40.0 && BCC == 0)
             simBuy();
 
-        pair = "BNBUSDT";
-        checkBuy();
-        if(RSI.back() < 40.0 && BNB == 0)
+        servData.inputPair("BNBUSDT");
+        algoBot.checkBuy();
+        RSIcheck = TechnicalAnalysisCalcs.getRSIback();
+        if(RSIcheck < 40.0 && BNB == 0)
             simBuy();
 
-        pair = "NEOUSDT";
-        checkBuy();
-        if(RSI.back() < 40.0 && NEO == 0)
+        servData.inputPair("NEOUSDT");
+        algoBot.checkBuy();
+        RSIcheck = TechnicalAnalysisCalcs.getRSIback();
+        if(RSIcheck < 40.0 && NEO == 0)
             simBuy();
 
-        pair = "ADAUSDT";
-        checkBuy();
-        if(RSI.back() < 40.0 && ADA == 0)
+        servData.inputPair("ADAUSDT");
+        algoBot.checkBuy();
+        RSIcheck = TechnicalAnalysisCalcs.getRSIback();
+        if(RSIcheck < 40.0 && ADA == 0)
             simBuy();
 
-        pair = "QTUMUSDT";
-        checkBuy();
-        if(RSI.back() < 40.0 && QTUM == 0)
+        servData.inputPair("QTUMUSDT");
+        algoBot.checkBuy();
+        RSIcheck = TechnicalAnalysisCalcs.getRSIback();
+        if(RSIcheck < 40.0 && QTUM == 0)
             simBuy();
         //---------------//
 
-        pair = "BTCUSDT";
-        checkBuy();
-        if(RSI.back() > 60.0 && BTC > 0)
+        servData.inputPair("BTCUSDT");
+        algoBot.checkBuy();
+        RSIcheck = TechnicalAnalysisCalcs.getRSIback();
+        if(RSIcheck > 60.0 && BTC > 0)
             simSell();
 
-        pair = "LTCUSDT";
-        checkBuy();
-        if(RSI.back() > 60.0 && LTC > 0)
+        servData.inputPair("LTCUSDT");
+        algoBot.checkBuy();
+        RSIcheck = TechnicalAnalysisCalcs.getRSIback();
+        if(RSIcheck > 60.0 && LTC > 0)
             simSell();
 
-        pair = "ETHUSDT";
-        checkBuy();
-        if(RSI.back() > 60.0 && ETH > 0)
+        servData.inputPair("ETHUSDT");
+        algoBot.checkBuy();
+        RSIcheck = TechnicalAnalysisCalcs.getRSIback();
+        if(RSIcheck > 60.0 && ETH > 0)
             simSell();
 
-        pair = "BCCUSDT";
-        checkBuy();
-        if(RSI.back() > 60.0 && BCC > 0)
+        servData.inputPair("BCCUSDT");
+        algoBot.checkBuy();
+        RSIcheck = TechnicalAnalysisCalcs.getRSIback();
+        if(RSIcheck > 60.0 && BCC > 0)
             simSell();
 
-        pair = "BNBUSDT";
-        checkBuy();
-        if(RSI.back() > 60.0 && BNB > 0)
+        servData.inputPair("BNBUSDT");
+        algoBot.checkBuy();
+        RSIcheck = TechnicalAnalysisCalcs.getRSIback();
+        if(RSIcheck > 60.0 && BNB > 0)
             simSell();
 
-        pair = "NEOUSDT";
-        checkBuy();
-        if(RSI.back() > 60.0 && NEO > 0)
+        servData.inputPair("NEOUSDT");
+        algoBot.checkBuy();
+        RSIcheck = TechnicalAnalysisCalcs.getRSIback();
+        if(RSIcheck > 60.0 && NEO > 0)
             simSell();
 
-        pair = "ADAUSDT";
-        checkBuy();
-        if(RSI.back() > 60.0 && ADA > 0)
+        servData.inputPair("ADAUSDT");
+        algoBot.checkBuy();
+        RSIcheck = TechnicalAnalysisCalcs.getRSIback();
+        if(RSIcheck > 60.0 && ADA > 0)
             simSell();
 
-        pair = "QTUMUSDT";
-        checkBuy();
-        if(RSI.back() > 60.0 && QTUM > 0)
+        servData.inputPair("QTUMUSDT");
+        algoBot.checkBuy();
+        RSIcheck = TechnicalAnalysisCalcs.getRSIback();
+        if(RSIcheck > 60.0 && QTUM > 0)
             simSell();
         (count == 50) ? (getTotal(), count = 0) : (count++);
     }
 }
 
-void botData::algoBot(){
+void algorithmBot::setSellPercent(){
+    cout << "Enter target gains percentage" << endl;
+    cin >> sellPercent;
+}
+
+void algorithmBot::algoBot(){
     algoCheck = false;
     algoBuy = true;
-    bot.setPair();
+    servData.setPair();
     // bot.setSellPercent();
     cout << "Gathering data on pair...This may take some time..." << endl;
-    getPrice();
-    cout << "PRICE: " << setprecision(8) << fixed << bot.price << endl;
-    pastPrice = price;
-    while(algoCheck == false)
-        (algoBuy == true) ? checkBuy() : checkSell();
+    servData.setPrice();
+    //cout << "PRICE: " << setprecision(8) << fixed << algoBot.getPrice() << endl;
+    //pastPrice = servData.getPrice();
+    //while(algoCheck == false)
+    //    (algoBuy == true) ? checkBuy() : checkSell();
 }
 
-void botData::checkBuy(){
-    bot.getHistoricalPrices();
-    bot.calcRSI();
-    // bot.calcStochRSI();
+void algorithmBot::checkBuy(){
+    priceData.getHistoricalPrices();
+    TechnicalAnalysisCalcs.calcRSI();
+    // algoBot.calcStochRSI();
 }
 
-void botData::calcStochRSI(){
+/*void algorithmBot::checkSell(){
+    double currentPrice = servData.getPrice();
+    double difference;
+    cout << endl << "PRICE: " << setprecision(8) << fixed << currentPrice << endl;
+    if(price > pastPrice){
+        difference = ((currentPrice - pastPrice)/price)*100;
+        cout << endl << "DIFF: " << difference << endl;
+
+        if(difference >= sellPercent){
+            cout << "We should sell." << endl;
+        }
+    }
+}*/
+
+void TechnicalAnalysis::calcStochRSI(){
     vector<long double> highest, lowest;
     long double temp=0;
     int startingPoint = 0;
@@ -375,22 +446,18 @@ void botData::calcStochRSI(){
 
 }
 
-void botData::calcRSI(){
+void TechnicalAnalysis::calcRSI(){
     RSI.clear();
     vector<long double> gain, loss, change, avgGain, avgLoss, RS;
-    vector<long double> currentPeriod(close.end()-250, close.end());
+    vector<long double> currentPeriod(priceData.close.end()-250, priceData.close.end());
     double sumGain = 0, sumLoss = 0;
 
     for(int i = 1; i < currentPeriod.size(); i++)
         change.push_back(currentPeriod[i] - currentPeriod[i-1]);
 
-
     for(int i = 0; i < change.size(); i++){
         change[i] > 0 ? gain.push_back(change[i]) : gain.push_back(0);
         change[i] < 0 ? loss.push_back(abs(change[i])) : loss.push_back(0);
-    }
-
-    for(int i = 0; i < 14; i++){
         sumGain += gain[i];
         sumLoss += loss[i];
     }
@@ -404,34 +471,30 @@ void botData::calcRSI(){
         j++;
     }
 
-    for(int i = 0; i < avgGain.size(); i++)
+    for(int i = 0; i < avgGain.size(); i++){
         RS.push_back(avgGain[i]/avgLoss[i]);
-
-    for(int i = 0; i < RS.size(); i++)
         avgLoss[i] == 0 ? RSI.push_back(100) : RSI.push_back(100 - (100/(1+RS[i])));
-
-
-    // cout << endl << "RSI: " << RSI.back() << endl;
+    }
 }
 
 //Clear all vectors of old coin pair or old data to allow most up to date data.
-void botData::clearVecs(){
-    openTime.clear();
-    open.clear();
-    high.clear();
-    low.clear();
-    close.clear();
-    volume.clear();
-    closeTime.clear();
-    quoteAssetVolume.clear();
-    numTrades.clear();
-    takerBuyAssetVol.clear();
-    takerBuyQuoteAssetVol.clear();
-    ignore.clear();
+void pricingData::clearVecs(){
+    priceData.openTime.clear();
+    priceData.open.clear();
+    priceData.high.clear();
+    priceData.low.clear();
+    priceData.close.clear();
+    priceData.volume.clear();
+    priceData.closeTime.clear();
+    priceData.quoteAssetVolume.clear();
+    priceData.numTrades.clear();
+    priceData.takerBuyAssetVol.clear();
+    priceData.takerBuyQuoteAssetVol.clear();
+    priceData.ignore.clear();
 }
 
-void botData::formatHistoricalPrices(json::value const &value){ //temp
-    clearVecs();
+void pricingData::formatHistoricalPrices(json::value const &value){ //temp
+    priceData.clearVecs();
     if(!value.is_null()){
         json::value historicalData = value;
         ofstream outputFile;
@@ -456,40 +519,40 @@ void botData::formatHistoricalPrices(json::value const &value){ //temp
                 else{
                     switch (count){
                         case 0:
-                            openTime.push_back(stof(tempHolder.c_str()));
+                            priceData.openTime.push_back(stof(tempHolder.c_str()));
                             break;
                         case 1:
-                            open.push_back(stof(tempHolder.c_str()));
+                            priceData.open.push_back(stof(tempHolder.c_str()));
                             break;
                         case 2:
-                            high.push_back(stof(tempHolder.c_str()));
+                            priceData.high.push_back(stof(tempHolder.c_str()));
                             break;
                         case 3:
-                            low.push_back(stof(tempHolder.c_str()));
+                            priceData.low.push_back(stof(tempHolder.c_str()));
                             break;
                         case 4:
-                            close.push_back(stof(tempHolder.c_str()));
+                            priceData.close.push_back(stof(tempHolder.c_str()));
                             break;
                         case 5:
-                            volume.push_back(stof(tempHolder.c_str()));
+                            priceData.volume.push_back(stof(tempHolder.c_str()));
                             break;
                         case 6:
-                            closeTime.push_back(stof(tempHolder.c_str()));
+                            priceData.closeTime.push_back(stof(tempHolder.c_str()));
                             break;
                         case 7:
-                            quoteAssetVolume.push_back(stof(tempHolder.c_str()));
+                            priceData.quoteAssetVolume.push_back(stof(tempHolder.c_str()));
                             break;
                         case 8:
-                            numTrades.push_back(stof(tempHolder.c_str()));
+                            priceData.numTrades.push_back(stof(tempHolder.c_str()));
                             break;
                         case 9:
-                            takerBuyAssetVol.push_back(stof(tempHolder.c_str()));
+                            priceData.takerBuyAssetVol.push_back(stof(tempHolder.c_str()));
                             break;
                         case 10:
-                            takerBuyQuoteAssetVol.push_back(stof(tempHolder.c_str()));
+                            priceData.takerBuyQuoteAssetVol.push_back(stof(tempHolder.c_str()));
                             break;
                         case 11:
-                            ignore.push_back(stof(tempHolder.c_str()));
+                            priceData.ignore.push_back(stof(tempHolder.c_str()));
                             break;
                         default:
                             break;
@@ -502,12 +565,12 @@ void botData::formatHistoricalPrices(json::value const &value){ //temp
     }//end of first if
 }//End of function
 
-void botData::getHistoricalPrices(){ //Get all price data since 1/1/2017 over an interval
+void pricingData::getHistoricalPrices(){ //Get all price data since 1/1/2017 over an interval
     //https://api.binance.com/api/v1/klines?symbol=ETHBTC&interval=1h&startTime=1523059200
     http_client client(U(RESTfulHost));
     string interval, timestamp = "1483243199000";
     interval = "5m";
-    string full_request = "/api/v1/klines?symbol="+pair+"&interval="+interval;
+    string full_request = "/api/v1/klines?symbol="+servData.getPair()+"&interval="+interval;
     client.request(methods::GET, full_request).then([](http_response response)-> //Do a RESTful GET request on the full URL for the price
                                                     pplx::task<json::value>{ //Result will be in JSON
                                                         if(response.status_code() == status_codes::OK){ //If everything went okay, return the JSON (lambda function)
@@ -518,7 +581,7 @@ void botData::getHistoricalPrices(){ //Get all price data since 1/1/2017 over an
     .then([](pplx::task<json::value> previousTask){
         try{
             json::value const & v = previousTask.get(); //Take the JSON gathered by the GET request and store it into CPP JSON object
-            bot.formatHistoricalPrices(v);
+            priceData.formatHistoricalPrices(v);
         }
         catch (http_exception const & e){ //This is just here to output an error if one occurs.
             wcout << e.what() << endl;
@@ -526,53 +589,18 @@ void botData::getHistoricalPrices(){ //Get all price data since 1/1/2017 over an
     }).wait(); //Wait for all to finish
 }
 
-void botData::checkSell(){
-    getPrice();
-    double difference;
-    cout << endl << "PRICE: " << setprecision(8) << fixed << bot.price << endl;
-    if(price > pastPrice){
-        difference = ((price - pastPrice)/price)*100;
-        cout << endl << "DIFF: " << difference << endl;
-
-        if(difference >= sellPercent){
-            cout << "We should sell." << endl;
-        }
-    }
-}
-
 void printPrice(json::value const &value){ //temp
     if(!value.is_null()){
         json::value test = value;
         string v = test["price"].as_string();
         double price = stof(v.c_str());
-        bot.setPrice(price);
+        servData.inputPrice(price);
         // cout << test["price"] << endl << v << endl;
     }
 
 }
 
-void botData::getPrice(){
-http_client client(U(RESTfulHost)); //The base connection for the RESTful API
-string full_request = "/api/v3/ticker/price?symbol=" + pair; //The rest of the URL we are going to ping to the price
-client.request(methods::GET, full_request).then([](http_response response)-> //Do a RESTful GET request on the full URL for the price
-                                                pplx::task<json::value>{ //Result will be in JSON
-                                                    if(response.status_code() == status_codes::OK){ //If everything went okay, return the JSON (lambda function)
-                                                        return response.extract_json();
-                                                    }
-                                                    return pplx::task_from_result(json::value());
-                                                })
-.then([](pplx::task<json::value> previousTask){
-    try{
-        json::value const & v = previousTask.get(); //Take the JSON gathered by the GET request and store it into CPP JSON object
-        printPrice(v); //pass that object to the print price
-    }
-    catch (http_exception const & e){ //This is just here to output an error if one occurs.
-        wcout << e.what() << endl;
-    }
-}).wait(); //Wait for all to finish
-}
-
-inline auto binary_to_hex_digit(unsigned a) -> char{
+auto binary_to_hex_digit(unsigned a) -> char{
     return a + (a < 10 ? '0' : 'a' - 10);
 }
 
@@ -583,18 +611,4 @@ auto binary_to_hex(unsigned char const* binary, unsigned binary_len) -> string {
         r[i * 2 + 1] = binary_to_hex_digit(binary[i] & 15);
     }
     return r;
-}
-
-void botData::HMACsha256(string const& message, string const& key) {
-    unsigned char result[EVP_MAX_MD_SIZE];
-    unsigned result_len = 0;
-    HMAC(EVP_sha256(), key.data(), key.size(), reinterpret_cast<unsigned char const*>(message.data()), message.size(), result, &result_len);
-    signature = binary_to_hex(result, result_len);
-}
-
-void botData::getTime(){
-    struct timeval tp;
-    gettimeofday(&tp, NULL);
-    long long mslong = (long long) tp.tv_sec * 1000L + tp.tv_usec / 1000;
-    string time = to_string(mslong);
 }
