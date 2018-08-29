@@ -1,3 +1,5 @@
+**NOTE: THIS PROJECT HAS BEEN DISCONTINUED, FURTHER ALGO BOT WORK CAN BE FOUND AT https://github.com/Chudleyj/AlgoBot 
+
 # Binance-Trading-Bot
 A C++ bot that uses Bianance's RESTful API alongside Microsoft's C++ RESTsdk
 
